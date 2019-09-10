@@ -1,5 +1,5 @@
 import socket
-import re
+# import re
 
 def register_user(u_name):
 #    if (check_username(u_name)):
@@ -16,7 +16,7 @@ s2.connect(('127.0.0.1',s_port)) #It'll receive data for the client
 print ("You are successfully connected to the server\n")
 get_out = False
 u_name = input("Please Enter your username: ")
-
+get_out=True
 
 while get_out:
     inp = input("Enter data to be sent to the server. Type q to exit\n")
