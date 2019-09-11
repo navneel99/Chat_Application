@@ -89,10 +89,10 @@ def register_user(u_name, send_socket, receive_socket):
 
 s1 = socket.socket()
 s2 = socket.socket()
-r_port = 6969  #receiving port of the server
-s_port = 6970 #sending port of the server
-s1.connect(('127.0.0.1',r_port)) #It'll send data for the client
-s2.connect(('127.0.0.1',s_port)) #It'll receive data for the client
+s_port = 6969  #Send messages on this port
+r_port = 6970 #receive messages on this port
+s1.connect(('127.0.0.1',s_port)) #It'll send message for the client
+s2.connect(('127.0.0.1',r_port)) #It'll receive message for the client
 print ("You are successfully connected to the server\n")
 
 username_retry = True
