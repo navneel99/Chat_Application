@@ -3,6 +3,10 @@ import threading
 import socket
 import re
 from socketserver import ThreadingMixIn
+from Crypto.PublicKey import RSA
+from Crypto import Random
+from Crypto.Cipher import PKCS1_OAEP
+import base64
 
 def reg_match(regex, string):
     if re.search(regex, string):
@@ -15,6 +19,11 @@ def encrypt_decrypt(data,flag=True): #True flag means encryption
         return bytes(data,encoding="ascii")
     else:
         return (data.decode(encoding = "ascii"))
+
+def decrypt_message(key, message):
+    message = base64.b64decode(message)
+    message = key.decrypt(message)
+    return message
 
 # client_lock = threading.Lock()
 # The function sends data to the client and then receives data from the client to return to its main function

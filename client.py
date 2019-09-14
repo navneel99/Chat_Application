@@ -1,6 +1,10 @@
 import socket
 from _thread import *
 import threading
+from Crypto.PublicKey import RSA
+from Crypto import Random
+from Crypto.Cipher import PKCS1_OAEP
+import base64
 
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
@@ -69,9 +73,31 @@ class sendThread(threading.Thread):
                 # else:
                 #     print(data)
 
+#Generating Keys for encryption
+def keyGeneration():
+    key = RSA.generate(2048)
+    private_key = key.exportKey('PEM')
+    public_key = key.publickey().exportKey('PEM')
 
+    rsa_public_key = RSA.importKey(public_key)
+    rsa_public_key = PKCS1_OAEP.new(rsa_public_key)
 
+    rsa_private_key = RSA.importKey(private_key)
+    rsa_private_key = PKCS1_OAEP.new(rsa_private_key)
 
+    return rsa_public_key, rsa_private_key
+
+def encrypt_message(key, message):
+    message = str.encode(message)
+    message = key.encrypt(message)
+    encodedBytes = base64.b64encode(message)
+    encodedStr = str(encodedBytes, "utf-8")
+    return encodedStr
+
+def decrypt_message(key, message):
+    message = base64.b64decode(message)
+    message = key.decrypt(message)
+    return message
 
 
 def register_user(u_name, send_socket, receive_socket):
