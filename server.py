@@ -46,7 +46,6 @@ class ClientPerThread(threading.Thread):
                     users.append(username)
                     user_dic[username] = (self.receiveSocket,self.sendSocket)
                     self.currClient = username
-                    # print ("REGISTERED "+ split_data[0][1]+" "+username+"\n\n")
                     self.sendSocket.send(encrypt_decrypt("REGISTERED "+ split_data[0][1]+" "+username+"\n\n"))
                 else:
                     self.sendSocket.send(encrypt_decrypt("ERROR 100 Malformed username\n\n"))

@@ -4,7 +4,7 @@ import threading
 
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
-        return bytes(data,encoding="ascii")
+        return bytes(data, encoding="ascii")
     else:
         return (data.decode(encoding = "ascii"))
 
@@ -16,14 +16,17 @@ class forwardThread(threading.Thread):
     def run(self):
         while True:
             fwdm = encrypt_decrypt(self.receiveSocket.recv(1024),False)
+            print("In the forwardThread")
             chk = [ line.split() for line in fwdm.split('\n')]
             if len(chk)<=3:
                 #Bad Header
                 self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
             else:
                 actual_message = "\n".join([ " ".join(line) for line in chk[3:]])
-                print ("Message Received from: " + chk[0][1]+"\n")
+                print("----MESSAGE START----")
+                print ("From: " + chk[0][1]+"\n")
                 print(actual_message)
+                print ("----MESSAGE END----")
                 self.receiveSocket.send(encrypt_decrypt("RECEIVED "+ chk[0][1]+"\n\n"))
 
 
@@ -33,8 +36,8 @@ class sendThread(threading.Thread):
         self.sendSocket = send_socket
 
 
-    def send_message(self,input):
-         tmp = input.split()
+    def send_message(self,inp):
+         tmp = inp.split()
          recipent = tmp[0]
          message = ' '.join(tmp[1:])
          c_l = len(message)
@@ -51,7 +54,7 @@ class sendThread(threading.Thread):
                 test = inp.split()
                 if (test[0][0] == "@") and len(test)>1:
                     self.send_message(inp)
-                    data = encrypt_decrypt(s2.recv(1024),False) #waiting for ack
+                    data = encrypt_decrypt(self.sendSocket.recv(1024),False) #waiting for ack
                     tmp_data =  [line.split() for line in data.split('\n')]
                     if (tmp_data[0][0] == "SENT"):
                         print("Message sent successfully.")
