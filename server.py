@@ -7,6 +7,9 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 import base64
+import pickle
+
+MODE = 1
 
 def reg_match(regex, string):
     if re.search(regex, string):
@@ -25,10 +28,9 @@ def decrypt_message(key, message):
     message = key.decrypt(message)
     return message
 
-# client_lock = threading.Lock()
 # The function sends data to the client and then receives data from the client to return to its main function
 users = [] #List of usernames registered
-user_dic = {} #Key are usernames and bvalues are tuple of send and receive socket.
+user_dic = {} #Key are usernames and bvalues are tuple of send and receive socket and public_key
 class ClientPerThread(threading.Thread):
     def __init__(self,r_sock,s_sock):
         threading.Thread.__init__(self)
@@ -37,8 +39,10 @@ class ClientPerThread(threading.Thread):
         self.currClient = None
 
     def forward_message(self,recipent,c_length,message):
-        r_sock,s_sock = user_dic[recipent]
+        r_sock,s_sock,pub_key = user_dic[recipent]
         actual_message = "FORWARD "+ self.currClient + "\nContent-length: "+str(c_length)+"\n\n"+message
+        if (MODE != 1):
+            s_sock.send(encrypt_decrypt(pub_key)) #Send public key to the client
         s_sock.send(encrypt_decrypt(actual_message))
         ack = encrypt_decrypt(s_sock.recv(1024),False)
         print ("Ack after receving the message is: "+ ack)
@@ -53,9 +57,13 @@ class ClientPerThread(threading.Thread):
                 username = split_data[0][2]
                 if reg_match("[a-zA-Z0-9]+", username):
                     users.append(username)
-                    user_dic[username] = (self.receiveSocket,self.sendSocket)
-                    self.currClient = username
                     self.sendSocket.send(encrypt_decrypt("REGISTERED "+ split_data[0][1]+" "+username+"\n\n"))
+                    if split_data[0][1] == "TORECV":
+                        pub_key = None
+                        if MODE != 1:
+                            pub_key = encrypt_decrypt((self.sendSocket.recv(1024)),False)
+                        user_dic[username] = (self.receiveSocket,self.sendSocket,pub_key)
+                        self.currClient = username
                 else:
                     self.sendSocket.send(encrypt_decrypt("ERROR 100 Malformed username\n\n"))
             elif (split_data[0][0] == "SEND"):
@@ -77,6 +85,8 @@ class ClientPerThread(threading.Thread):
                         self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
 
             else:
+                if data == "UNREGISTER":
+                    self.sendSocket.send(encrypt_decrypt("EXIT"))
                 print("Normal data from "+username+": "+ str(data))
                 self.sendSocket.send(encrypt_decrypt("Dummy to allow next loop.\n"))
                 # pass

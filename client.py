@@ -5,7 +5,9 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 import base64
+import pickle
 
+MODE=1
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
         return bytes(data, encoding="ascii")
@@ -19,8 +21,11 @@ class forwardThread(threading.Thread):
 
     def run(self):
         while True:
+            if (MODE != 1):
+                pub_key = encrypt_decrypt(pickle.loads(self.receiveSocket.recv(1024)),False) #public key received
             fwdm = encrypt_decrypt(self.receiveSocket.recv(1024),False)
-            print("In the forwardThread")
+            if fwdm == "EXIT":
+                break
             chk = [ line.split() for line in fwdm.split('\n')]
             if len(chk)<=3:
                 #Bad Header
@@ -45,7 +50,9 @@ class sendThread(threading.Thread):
          recipent = tmp[0]
          message = ' '.join(tmp[1:])
          c_l = len(message)
+         # encrypted_message = encrypt_message(priv_key,message)
          actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+message
+         # actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
          self.sendSocket.send(encrypt_decrypt(actual_message))
 
     def run(self):
@@ -53,6 +60,7 @@ class sendThread(threading.Thread):
             print("Data should be of form @[recipent] [message]")
             inp = input("Enter data to be sent to the server. Type q to exit\n")
             if (inp.lower() == 'q'):
+                self.sendSocket.send(encrypt_decrypt("UNREGISTER"))
                 break
             else:
                 test = inp.split()
@@ -68,10 +76,6 @@ class sendThread(threading.Thread):
                 else:
                     print("Write the message again.")
                     continue
-                # if not data:
-                #     continue
-                # else:
-                #     print(data)
 
 #Generating Keys for encryption
 def keyGeneration():
@@ -113,6 +117,9 @@ def register_user(u_name, send_socket, receive_socket):
             print ("Malformed Username")
             return False
     else:
+        # print (str(pub_key))
+        if (MODE != 1):
+            s1.send(encrypt_decrypt(pickle.dumps(pub_key))) #Send the public key to the server to save.
         print ("User Registered.")
         return True
 
@@ -129,6 +136,7 @@ username_retry = True
 
 while username_retry:
     u_name = input("Please Enter your username: ")
+    pub_key, priv_key = keyGeneration()
     if register_user(u_name, s1, s2):
         username_retry = False
     else:
@@ -140,21 +148,8 @@ thread2 = forwardThread(s2)
 thread1.start()
 thread2.start()
 
-# while get_out:
-#     inp = input("Enter data to be sent to the server. Type q to exit\n")
-#     if (inp.lower() == 'q'):
-#         get_out = False
-#     else:
-#         s1.send(encrypt_decrypt(inp))
-#         data = encrypt_decrypt(s2.recv(1024),False)
-#         if not data:
-#             continue
-#         else:
-#             print(data)
-    #print(s2.recv(1024))
-    #print (s1.send(b"Using the send port to send data from the client.\n"))
 thread1.join()
-# thread2.join()
+thread2.join()
 
 s1.close()
 s2.close()
