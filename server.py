@@ -101,6 +101,7 @@ class ClientPerThread(threading.Thread):
                     if tmp_ack[0][0] == "RECEIVED":
                         self.receiveSocket.send(encrypt_decrypt("SENT "+recipent+"\n\n"))
                     else:
+                        # if (tmp_ack[0][1] == "103"):
                         self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
 
             else:

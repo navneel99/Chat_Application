@@ -22,15 +22,11 @@ class forwardThread(threading.Thread):
 
     def run(self):
         while True:
-            # if (MODE != 1):
-                # pub_key = encrypt_decrypt(pickle.loads(self.receiveSocket.recv(1024)),False) #public key received
             fwdm = encrypt_decrypt(self.receiveSocket.recv(1024),False)
             if fwdm == "EXIT":
                 break
             chk = [ line.split() for line in fwdm.split('\n')]
-            # print ("Receiver Client: ")
-            # print(chk[3][0])
-            # print("------------------------")
+            flag =True
             if MODE == 2:
                 actual_message = encrypt_decrypt(decrypt_message(priv_key, chk[3][0]),False)
             elif MODE == 1:
@@ -45,17 +41,20 @@ class forwardThread(threading.Thread):
                 else:
                     print("Signatures don't match.")
                     actual_message = "ERROR SIGNATURES DON'T MATCH."
+                    flag = False
+                    self.receiveSocket.send(encrypt_decrypt("ERROR 999 SIGNATURE DOESN'T MATCH\n\n"))
+
 
             if len(chk)<=3:
                 #Bad Header
                 self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
             else:
-
-                print("----MESSAGE START----")
-                print ("From: " + chk[0][1]+"\n")
-                print(actual_message)
-                print ("----MESSAGE END----")
-                self.receiveSocket.send(encrypt_decrypt("RECEIVED "+ chk[0][1]+"\n\n"))
+                if flag == True:
+                    print("----MESSAGE START----")
+                    print ("From: " + chk[0][1]+"\n")
+                    print(actual_message)
+                    print ("----MESSAGE END----")
+                    self.receiveSocket.send(encrypt_decrypt("RECEIVED "+ chk[0][1]+"\n\n"))
 
 
 class sendThread(threading.Thread):
@@ -70,12 +69,8 @@ class sendThread(threading.Thread):
          message = ' '.join(tmp[1:])
          if (MODE !=1):
              prelim_message = "SEND "+recipent+"\n"
-             # print(prelim_message + " CREATED")
              self.sendSocket.send(encrypt_decrypt(prelim_message))
-             # print(prelim_message + " SENT")
-             # to_pub_key = encrypt_decrypt((self.sendSocket.recv(1024)),False) #encrypt with recipent's public key
              to_pub_key = (self.sendSocket.recv(1024))
-             # print("Public key received,")
              encrypted_message = encrypt_message(to_pub_key,message)
          if MODE == 3:
              signature = SHAencryption(encrypted_message, to_pub_key)
@@ -86,7 +81,6 @@ class sendThread(threading.Thread):
              actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
          else:
              actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\nSignature: "+signature+"\n\n"+encrypted_message
-             # print("Encrypted Message Sending: " + encrypted_message)
          self.sendSocket.send(encrypt_decrypt(actual_message))
 
     def run(self):
@@ -105,7 +99,7 @@ class sendThread(threading.Thread):
                     if (tmp_data[0][0] == "SENT"):
                         print("Message sent successfully.")
                     else:
-                        print("Some error from the server.")
+                        print("Unable to send. Try again later.")
                 else:
                     print("Write the message again.")
                     continue
@@ -123,11 +117,7 @@ def encrypt_message(key, message):
     rsa_key = PKCS1_OAEP.new(rsa_key)
 
     message = str.encode(message)
-    # print(message)
-    # print("-----")
     message = rsa_key.encrypt(message)
-    # print(message)
-    # print("-----")/
     encodedBytes = base64.b64encode(message)
     encodedStr = str(encodedBytes, "ascii")
     return encodedStr
