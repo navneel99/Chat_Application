@@ -24,8 +24,10 @@ def encrypt_decrypt(data,flag=True): #True flag means encryption
         return (data.decode(encoding = "ascii"))
 
 def decrypt_message(key, message):
+    rsa_key = RSA.importKey(key)
+    rsa_key = PKCS1_OAEP.new(rsa_key)
     message = base64.b64decode(message)
-    message = key.decrypt(message)
+    message = rsa_key.decrypt(message)
     return message
 
 # The function sends data to the client and then receives data from the client to return to its main function
