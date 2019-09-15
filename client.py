@@ -52,6 +52,7 @@ class sendThread(threading.Thread):
          c_l = len(message)
          # encrypted_message = encrypt_message(priv_key,message)
          actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+message
+
          # actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
          self.sendSocket.send(encrypt_decrypt(actual_message))
 
@@ -71,7 +72,6 @@ class sendThread(threading.Thread):
                     if (tmp_data[0][0] == "SENT"):
                         print("Message sent successfully.")
                     else:
-                        print(data)
                         print("Some error from the server.")
                 else:
                     print("Write the message again.")
@@ -144,7 +144,6 @@ while username_retry:
 
 thread1 = sendThread(s1)
 thread2 = forwardThread(s2)
-# while True:
 thread1.start()
 thread2.start()
 

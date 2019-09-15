@@ -75,6 +75,8 @@ class ClientPerThread(threading.Thread):
                     self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
                 elif(len(split_data)<4): #This condiiton is for header incomplete
                     self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
+                    self.receiveSocket.close()
+                    self.sendSocket.close()
                 else:
                     #Send the message
                     ack = self.forward_message(recipent,c_length,message)
@@ -87,6 +89,8 @@ class ClientPerThread(threading.Thread):
             else:
                 if data == "UNREGISTER":
                     self.sendSocket.send(encrypt_decrypt("EXIT"))
+                    users.remove(self.currClient)
+                    user_dic.pop(self.currClient,None)
                 print("Normal data from "+username+": "+ str(data))
                 self.sendSocket.send(encrypt_decrypt("Dummy to allow next loop.\n"))
                 # pass
