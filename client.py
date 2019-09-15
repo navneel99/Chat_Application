@@ -8,7 +8,7 @@ import base64
 import pickle
 import hashlib
 
-MODE=2
+MODE=3
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
         return bytes(data, encoding="ascii")
@@ -31,10 +31,21 @@ class forwardThread(threading.Thread):
             # print ("Receiver Client: ")
             # print(chk[3][0])
             # print("------------------------")
-            if MODE != 1:
+            if MODE == 2:
                 actual_message = encrypt_decrypt(decrypt_message(priv_key, chk[3][0]),False)
-            else:
+            elif MODE == 1:
                 actual_message = "\n".join([ " ".join(line) for line in chk[3:]])
+            else:
+                received_sig = chk[2][1]
+                decrypted_rec_sig = encrypt_decrypt(decrypt_message(priv_key, received_sig),False)
+                cal_dec_sig = hashlib.sha256((chk[4][0]).encode()).hexdigest()
+                if (decrypted_rec_sig == cal_dec_sig):
+                    print ("Signatures Match")
+                    actual_message = encrypt_decrypt(decrypt_message(priv_key, chk[4][0]),False)
+                else:
+                    print("Signatures don't match.")
+                    actual_message = "ERROR SIGNATURES DON'T MATCH."
+
             if len(chk)<=3:
                 #Bad Header
                 self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
@@ -66,13 +77,16 @@ class sendThread(threading.Thread):
              to_pub_key = (self.sendSocket.recv(1024))
              # print("Public key received,")
              encrypted_message = encrypt_message(to_pub_key,message)
-
+         if MODE == 3:
+             signature = SHAencryption(encrypted_message, to_pub_key)
          c_l = len(message)
          if MODE == 1:
              actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+message
-         else:
+         elif MODE == 2:
              actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
-             # print("Message sent to the server: "+ actual_message)
+         else:
+             actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\nSignature: "+signature+"\n\n"+encrypted_message
+             # print("Encrypted Message Sending: " + encrypted_message)
          self.sendSocket.send(encrypt_decrypt(actual_message))
 
     def run(self):
@@ -109,7 +123,11 @@ def encrypt_message(key, message):
     rsa_key = PKCS1_OAEP.new(rsa_key)
 
     message = str.encode(message)
+    # print(message)
+    # print("-----")
     message = rsa_key.encrypt(message)
+    # print(message)
+    # print("-----")/
     encodedBytes = base64.b64encode(message)
     encodedStr = str(encodedBytes, "ascii")
     return encodedStr
@@ -123,7 +141,9 @@ def decrypt_message(key, message):
 
 def SHAencryption(message, key):
   res = hashlib.sha256(message.encode())
-  res = encrypt_message(key, str(res))
+  # print(str(res))
+  res = encrypt_message(key, res.hexdigest())
+  # print(str(res))
   return res
 
 

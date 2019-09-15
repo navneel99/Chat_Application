@@ -9,7 +9,7 @@ from Crypto.Cipher import PKCS1_OAEP
 import base64
 import pickle
 
-MODE = 2
+MODE = 3
 
 def reg_match(regex, string):
     if re.search(regex, string):
@@ -40,9 +40,13 @@ class ClientPerThread(threading.Thread):
         self.sendSocket = s_sock
         self.currClient = None
 
-    def forward_message(self,recipent,c_length,message):
+    def forward_message(self,recipent,c_length,message,signature=None):
         r_sock,s_sock,pub_key = user_dic[recipent]
-        actual_message = "FORWARD "+ self.currClient + "\nContent-length: "+str(c_length)+"\n\n"+message
+        if MODE != 3:
+            actual_message = "FORWARD "+ self.currClient + "\nContent-length: "+str(c_length)+"\n\n"+message
+        else:
+            actual_message = "FORWARD "+ self.currClient + "\nContent-length: "+str(c_length)+"\nSignature: "+signature+"\n\n"+message
+
         s_sock.send(encrypt_decrypt(actual_message))
         ack = encrypt_decrypt(s_sock.recv(1024),False)
         print ("Ack after receving the message is: "+ ack)
@@ -74,8 +78,15 @@ class ClientPerThread(threading.Thread):
                     data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
                     split_data = [ line.split() for line in (data.split('\n'))]
                     recipent = split_data[0][1].lstrip('@')
+                    print ("Again Data")
+                    print(split_data)
                 c_length = split_data[1][1]
-                message = "\n".join([" ".join(line) for line in split_data[3:]])
+                if MODE !=3:
+                    message = "\n".join([" ".join(line) for line in split_data[3:]])
+                else:
+                    signature = split_data[2][1]
+                    message = "\n".join([" ".join(line) for line in split_data[4:]])
+
                 if recipent not in users:
                     #If send user doesn't exist
                     self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
@@ -85,7 +96,7 @@ class ClientPerThread(threading.Thread):
                     self.sendSocket.close()
                 else:
                     #Send the message
-                    ack = self.forward_message(recipent,c_length,message)
+                    ack = self.forward_message(recipent,c_length,message,signature)
                     tmp_ack =  [line.split() for line in ack.split("\n")]
                     if tmp_ack[0][0] == "RECEIVED":
                         self.receiveSocket.send(encrypt_decrypt("SENT "+recipent+"\n\n"))
@@ -129,8 +140,8 @@ def main_server_body():
     threads = []
 
     while True:
-        send_socket.listen(2)
-        receive_socket.listen(2)
+        send_socket.listen(5)
+        receive_socket.listen(5)
         r_conn, r_address = receive_socket.accept()
         s_conn, s_address = send_socket.accept()
         # client_lock.acquire()
@@ -139,6 +150,7 @@ def main_server_body():
         threads.append(newthread)
         print ("Accepted  receive connection from: "+ str(r_address))
         print ("Acceoted send connection from: " + str(s_address))
+        # newthread.join()
 
         # data = b"DUMMY"
         # start_new_thread(thread_client, (conn,conn2,data))
