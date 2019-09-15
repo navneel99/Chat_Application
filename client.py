@@ -5,7 +5,6 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 import base64
-import pickle
 import hashlib
 import sys
 
