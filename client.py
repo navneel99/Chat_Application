@@ -8,7 +8,7 @@ import base64
 import pickle
 import hashlib
 
-MODE=1
+MODE=2
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
         return bytes(data, encoding="ascii")
@@ -22,17 +22,24 @@ class forwardThread(threading.Thread):
 
     def run(self):
         while True:
-            if (MODE != 1):
-                pub_key = encrypt_decrypt(pickle.loads(self.receiveSocket.recv(1024)),False) #public key received
+            # if (MODE != 1):
+                # pub_key = encrypt_decrypt(pickle.loads(self.receiveSocket.recv(1024)),False) #public key received
             fwdm = encrypt_decrypt(self.receiveSocket.recv(1024),False)
             if fwdm == "EXIT":
                 break
             chk = [ line.split() for line in fwdm.split('\n')]
+            # print ("Receiver Client: ")
+            # print(chk[3][0])
+            # print("------------------------")
+            if MODE != 1:
+                actual_message = encrypt_decrypt(decrypt_message(priv_key, chk[3][0]),False)
+            else:
+                actual_message = "\n".join([ " ".join(line) for line in chk[3:]])
             if len(chk)<=3:
                 #Bad Header
                 self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
             else:
-                actual_message = "\n".join([ " ".join(line) for line in chk[3:]])
+
                 print("----MESSAGE START----")
                 print ("From: " + chk[0][1]+"\n")
                 print(actual_message)
@@ -50,11 +57,22 @@ class sendThread(threading.Thread):
          tmp = inp.split()
          recipent = tmp[0]
          message = ' '.join(tmp[1:])
-         c_l = len(message)
-         # encrypted_message = encrypt_message(priv_key,message)
-         actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+message
+         if (MODE !=1):
+             prelim_message = "SEND "+recipent+"\n"
+             # print(prelim_message + " CREATED")
+             self.sendSocket.send(encrypt_decrypt(prelim_message))
+             # print(prelim_message + " SENT")
+             # to_pub_key = encrypt_decrypt((self.sendSocket.recv(1024)),False) #encrypt with recipent's public key
+             to_pub_key = (self.sendSocket.recv(1024))
+             # print("Public key received,")
+             encrypted_message = encrypt_message(to_pub_key,message)
 
-         # actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
+         c_l = len(message)
+         if MODE == 1:
+             actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+message
+         else:
+             actual_message = "SEND "+recipent+"\nContent-length: "+str(c_l)+"\n\n"+encrypted_message
+             # print("Message sent to the server: "+ actual_message)
          self.sendSocket.send(encrypt_decrypt(actual_message))
 
     def run(self):
@@ -124,7 +142,9 @@ def register_user(u_name, send_socket, receive_socket):
     else:
         # print (str(pub_key))
         if (MODE != 1):
-            s1.send(encrypt_decrypt(pickle.dumps(pub_key))) #Send the public key to the server to save.
+            # s1.send(encrypt_decrypt(pickle.dumps(pub_key))) #Send the public key to the server to save.
+            # print (pub_key)
+            s1.send(pub_key)
         print ("User Registered.")
         return True
 
@@ -157,5 +177,5 @@ thread2.join()
 
 s1.close()
 s2.close()
-print ("socket closed")
+print ("Thanks for connecting!")
 # thread2.join()

@@ -9,7 +9,7 @@ from Crypto.Cipher import PKCS1_OAEP
 import base64
 import pickle
 
-MODE = 1
+MODE = 2
 
 def reg_match(regex, string):
     if re.search(regex, string):
@@ -43,8 +43,6 @@ class ClientPerThread(threading.Thread):
     def forward_message(self,recipent,c_length,message):
         r_sock,s_sock,pub_key = user_dic[recipent]
         actual_message = "FORWARD "+ self.currClient + "\nContent-length: "+str(c_length)+"\n\n"+message
-        if (MODE != 1):
-            s_sock.send(encrypt_decrypt(pub_key)) #Send public key to the client
         s_sock.send(encrypt_decrypt(actual_message))
         ack = encrypt_decrypt(s_sock.recv(1024),False)
         print ("Ack after receving the message is: "+ ack)
@@ -53,6 +51,7 @@ class ClientPerThread(threading.Thread):
     def client_operations(self):
         while True:
             data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
+            # print (data)
             split_data = [ line.split() for line in (data.split("\n"))]
             print (split_data)
             if split_data[0][0] == "REGISTER":
@@ -63,13 +62,18 @@ class ClientPerThread(threading.Thread):
                     if split_data[0][1] == "TORECV":
                         pub_key = None
                         if MODE != 1:
-                            pub_key = encrypt_decrypt((self.sendSocket.recv(1024)),False)
+                            pub_key = (self.receiveSocket.recv(1024))
                         user_dic[username] = (self.receiveSocket,self.sendSocket,pub_key)
                         self.currClient = username
                 else:
                     self.sendSocket.send(encrypt_decrypt("ERROR 100 Malformed username\n\n"))
             elif (split_data[0][0] == "SEND"):
                 recipent = split_data[0][1].lstrip("@")
+                if MODE != 1:
+                    self.receiveSocket.send((user_dic[recipent][2])) #Sending the public key.
+                    data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
+                    split_data = [ line.split() for line in (data.split('\n'))]
+                    recipent = split_data[0][1].lstrip('@')
                 c_length = split_data[1][1]
                 message = "\n".join([" ".join(line) for line in split_data[3:]])
                 if recipent not in users:
