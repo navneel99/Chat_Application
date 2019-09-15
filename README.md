@@ -18,7 +18,7 @@ Run:
 ## Client
 Run: <code> python3 client.py <i>USERNAME</i> <i>IP_OF_SERVER</i> <i>MODE</i>
   
-  <b>MODE<b>: Can be 1,2,3<br>
+  <b>MODE</b>: Can be 1,2,3<br>
   
   <b>IP_OF_SERVER</b>: Self Explanatory<br>
 
