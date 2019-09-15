@@ -6,6 +6,7 @@ from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 import base64
 import pickle
+import hashlib
 
 MODE=1
 def encrypt_decrypt(data,flag=True): #True flag means encryption
@@ -80,28 +81,32 @@ class sendThread(threading.Thread):
 #Generating Keys for encryption
 def keyGeneration():
     key = RSA.generate(2048)
-    private_key = key.exportKey('PEM')
-    public_key = key.publickey().exportKey('PEM')
+    private_key = key.exportKey('PEM', pkcs = 8)
+    public_key = key.publickey().exportKey('PEM', pkcs = 8)
 
-    rsa_public_key = RSA.importKey(public_key)
-    rsa_public_key = PKCS1_OAEP.new(rsa_public_key)
-
-    rsa_private_key = RSA.importKey(private_key)
-    rsa_private_key = PKCS1_OAEP.new(rsa_private_key)
-
-    return rsa_public_key, rsa_private_key
+    return public_key, private_key
 
 def encrypt_message(key, message):
+    rsa_key = RSA.importKey(key)
+    rsa_key = PKCS1_OAEP.new(rsa_key)
+
     message = str.encode(message)
-    message = key.encrypt(message)
+    message = rsa_key.encrypt(message)
     encodedBytes = base64.b64encode(message)
-    encodedStr = str(encodedBytes, "utf-8")
+    encodedStr = str(encodedBytes, "ascii")
     return encodedStr
 
 def decrypt_message(key, message):
+    rsa_key = RSA.importKey(key)
+    rsa_key = PKCS1_OAEP.new(rsa_key)
     message = base64.b64decode(message)
-    message = key.decrypt(message)
+    message = rsa_key.decrypt(message)
     return message
+
+def SHAencryption(message, key):
+  res = hashlib.sha256(message.encode())
+  res = encrypt_message(key, str(res))
+  return res
 
 
 def register_user(u_name, send_socket, receive_socket):
