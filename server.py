@@ -8,8 +8,9 @@ from Crypto import Random
 from Crypto.Cipher import PKCS1_OAEP
 import base64
 import pickle
+import sys
 
-MODE = 3
+MODE = int(sys.argv[1])
 
 def reg_match(regex, string):
     if re.search(regex, string):
@@ -49,7 +50,7 @@ class ClientPerThread(threading.Thread):
 
         s_sock.send(encrypt_decrypt(actual_message))
         ack = encrypt_decrypt(s_sock.recv(1024),False)
-        print ("Ack after receving the message is: "+ ack)
+        # print ("Ack after receving the message is: "+ ack)
         return ack
 
     def client_operations(self):
@@ -57,69 +58,72 @@ class ClientPerThread(threading.Thread):
             data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
             # print (data)
             split_data = [ line.split() for line in (data.split("\n"))]
-            print (split_data)
-            if split_data[0][0] == "REGISTER":
-                username = split_data[0][2]
-                if reg_match("[a-zA-Z0-9]+", username):
-                    users.append(username)
-                    self.sendSocket.send(encrypt_decrypt("REGISTERED "+ split_data[0][1]+" "+username+"\n\n"))
-                    if split_data[0][1] == "TORECV":
-                        pub_key = None
-                        if MODE != 1:
-                            pub_key = (self.receiveSocket.recv(1024))
-                        user_dic[username] = (self.receiveSocket,self.sendSocket,pub_key)
-                        self.currClient = username
-                else:
-                    self.sendSocket.send(encrypt_decrypt("ERROR 100 Malformed username\n\n"))
-            elif (split_data[0][0] == "SEND"):
-                recipent = split_data[0][1].lstrip("@")
-                if MODE != 1:
-                    self.receiveSocket.send((user_dic[recipent][2])) #Sending the public key.
-                    data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
-                    split_data = [ line.split() for line in (data.split('\n'))]
-                    recipent = split_data[0][1].lstrip('@')
-                    print ("Again Data")
-                    print(split_data)
-                c_length = split_data[1][1]
-                if MODE !=3:
-                    message = "\n".join([" ".join(line) for line in split_data[3:]])
-                else:
-                    signature = split_data[2][1]
-                    message = "\n".join([" ".join(line) for line in split_data[4:]])
-
-                if recipent not in users:
-                    #If send user doesn't exist
-                    self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
-                elif(len(split_data)<4): #This condiiton is for header incomplete
-                    self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
-                    self.receiveSocket.close()
-                    self.sendSocket.close()
-                else:
-                    #Send the message
-                    ack = self.forward_message(recipent,c_length,message,signature)
-                    tmp_ack =  [line.split() for line in ack.split("\n")]
-                    if tmp_ack[0][0] == "RECEIVED":
-                        self.receiveSocket.send(encrypt_decrypt("SENT "+recipent+"\n\n"))
+            # print (len(split_data))
+            try:
+                if split_data[0][0] == "REGISTER":
+                    username = split_data[0][2]
+                    if reg_match("^[a-zA-Z0-9]+$", username):
+                        self.sendSocket.send(encrypt_decrypt("REGISTERED "+ split_data[0][1]+" "+username+"\n\n"))
+                        if split_data[0][1] == "TORECV":
+                            users.append(username)
+                            pub_key = None
+                            if MODE != 1:
+                                pub_key = (self.receiveSocket.recv(1024))
+                            user_dic[username] = (self.receiveSocket,self.sendSocket,pub_key)
+                            self.currClient = username
                     else:
-                        # if (tmp_ack[0][1] == "103"):
-                        self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
+                        self.sendSocket.send(encrypt_decrypt("ERROR 100 Malformed username\n\n"))
+                elif (split_data[0][0] == "SEND"):
+                    recipent = split_data[0][1].lstrip("@")
+                    if MODE != 1:
+                        self.receiveSocket.send((user_dic[recipent][2])) #Sending the public key.
+                        data = encrypt_decrypt(self.receiveSocket.recv(1024),False)
+                        split_data = [ line.split() for line in (data.split('\n'))]
+                        recipent = split_data[0][1].lstrip('@')
+                    c_length = split_data[1][1]
+                    if MODE !=3:
+                        message = "\n".join([" ".join(line) for line in split_data[3:]])
+                        signature = None
+                    else:
+                        signature = split_data[2][1]
+                        message = "\n".join([" ".join(line) for line in split_data[4:]])
 
-            else:
-                if data == "UNREGISTER":
-                    self.sendSocket.send(encrypt_decrypt("EXIT"))
-                    users.remove(self.currClient)
-                    user_dic.pop(self.currClient,None)
-                print("Normal data from "+username+": "+ str(data))
-                self.sendSocket.send(encrypt_decrypt("Dummy to allow next loop.\n"))
-                # pass
+                    if recipent not in users:
+                        #If send user doesn't exist
+                        self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
+                    elif(len(split_data)<4): #This condiiton is for header incomplete
+                        self.receiveSocket.send(encrypt_decrypt("ERROR 103 Header incomplete\n\n"))
+                        self.receiveSocket.close()
+                        self.sendSocket.close()
+                    else:
+                        #Send the message
+                        ack = self.forward_message(recipent,c_length,message,signature)
+                        tmp_ack =  [line.split() for line in ack.split("\n")]
+                        if tmp_ack[0][0] == "RECEIVED":
+                            self.receiveSocket.send(encrypt_decrypt("SENT "+recipent+"\n\n"))
+                        else:
+                            # if (tmp_ack[0][1] == "103"):
+                            self.receiveSocket.send(encrypt_decrypt("ERROR 102 Unable to send\n\n"))
+
+                else:
+                    if data == "UNREGISTER":
+                        users.remove(self.currClient)
+                        user_dic.pop(self.currClient,None)
+
+                        self.sendSocket.send(encrypt_decrypt("EXIT"))
+                    # print("Normal data from "+username+": "+ str(data))
+                    self.sendSocket.send(encrypt_decrypt("Dummy to allow next loop.\n"))
+                    # pass
+            except IndexError:
+                break
 
 
     def run(self):
-       while True:
-            print ("Server waiting for data from client: ")
-            self.client_operations()
-       print ("Exited form the thread.\n")
-       # return inp_data
+       # while True:
+        print ("Server waiting for data from client: ")
+        self.client_operations()
+        print ("Client's connection closed.")
+   # return inp_data
 
 
 
@@ -150,7 +154,7 @@ def main_server_body():
         newthread.start()
         threads.append(newthread)
         print ("Accepted  receive connection from: "+ str(r_address))
-        print ("Acceoted send connection from: " + str(s_address))
+        print ("Accepted send connection from: " + str(s_address))
         # newthread.join()
 
         # data = b"DUMMY"

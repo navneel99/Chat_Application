@@ -7,8 +7,12 @@ from Crypto.Cipher import PKCS1_OAEP
 import base64
 import pickle
 import hashlib
+import sys
 
-MODE=3
+u_name = sys.argv[1]
+ip = sys.argv[2]
+MODE=int(sys.argv[3])
+
 def encrypt_decrypt(data,flag=True): #True flag means encryption
     if flag:
         return bytes(data, encoding="ascii")
@@ -162,30 +166,30 @@ s1 = socket.socket()
 s2 = socket.socket()
 s_port = 6969  #Send messages on this port
 r_port = 6970 #receive messages on this port
-s1.connect(('127.0.0.1',s_port)) #It'll send message for the client
-s2.connect(('127.0.0.1',r_port)) #It'll receive message for the client
+s1.connect((ip,s_port)) #It'll send message for the client
+s2.connect((ip,r_port)) #It'll receive message for the client
 print ("You are successfully connected to the server\n")
 
-username_retry = True
+# username_retry = True
 # get_out=True
 
-while username_retry:
-    u_name = input("Please Enter your username: ")
-    pub_key, priv_key = keyGeneration()
-    if register_user(u_name, s1, s2):
-        username_retry = False
-    else:
-        continue
+# while username_retry:
+    # u_name = input("Please Enter your username: ")
+pub_key, priv_key = keyGeneration()
+# u_name = sys.argv[1]
+if register_user(u_name, s1, s2):
+    # username_retry = False
+    thread1 = sendThread(s1)
+    thread2 = forwardThread(s2)
+    thread1.start()
+    thread2.start()
 
-thread1 = sendThread(s1)
-thread2 = forwardThread(s2)
-thread1.start()
-thread2.start()
+    thread1.join()
+    thread2.join()
 
-thread1.join()
-thread2.join()
+    s1.close()
+    s2.close()
+    print ("Thanks for connecting!")
 
-s1.close()
-s2.close()
-print ("Thanks for connecting!")
+
 # thread2.join()
